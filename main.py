@@ -67,7 +67,7 @@ except ImportError:
     from heartflow_lite import HeartflowLite
     from wardrobe import Wardrobe, DEFAULT_OUTFITS
 
-PLUGIN_VERSION = "1.0.1"
+PLUGIN_VERSION = "1.0.3"
 
 
 # ---------------------------------------------------------------------------
@@ -721,11 +721,26 @@ class StellarSplice(Star):
             f"{validated['intent']}（{validated['place']}）🔒"
         )
 
+    @staticmethod
+    def _scene_of(item: Optional[Dict]) -> str:
+        """日程分类 -> 衣柜场景。"""
+        if not item:
+            return "home"
+        cat = str(item.get("category") or "rest")
+        return {
+            "work": "work", "study": "work",
+            "play": "out", "social": "out",
+            "commute": "out", "meal": "casual",
+            "exercise": "sport", "sleep": "sleep",
+            "rest": "home", "life": "casual",
+        }.get(cat, "casual")
+
     # -------------------------------------------------------------------------
-    # 衣柜面板 API
+    # 面板 API
     # -------------------------------------------------------------------------
     async def initialize(self) -> None:
-        """插件初始化完成后注册面板。"""
+        """插件初始化完成后注册面板与 API 路由。"""
+        # 1) 注册面板页面
         try:
             if hasattr(self.context, "register_web_view"):
                 self.context.register_web_view(
@@ -735,13 +750,93 @@ class StellarSplice(Star):
                 )
                 logger.info("[StellarSplice] 面板已注册：/stellar_panel")
         except Exception as e:
-            logger.debug(f"[StellarSplice] 面板注册失败（可能版本不支持）: {e}")
+            logger.debug(f"[StellarSplice] 面板页面注册失败: {e}")
 
-        # 预读衣柜
+        # 2) 注册 API 路由
+        self._register_routes()
+
+        # 3) 预读衣柜
         if self._memory is not None:
             self._wardrobe = Wardrobe(db_plugin=self._memory)
             await self._wardrobe.refresh()
             logger.info(f"[StellarSplice] 衣柜加载完成，共 {self._wardrobe.count()} 件")
+
+    def _register_routes(self) -> None:
+        """注册面板 API 路由（兼容不同 AstrBot 版本）。"""
+        routes = [
+            ("/state",           self._api_state,            ["GET"]),
+            ("/wardrobe",        self._api_wardrobe_list,    ["GET"]),
+            ("/wardrobe/add",    self._api_wardrobe_add,     ["POST"]),
+            ("/wardrobe/delete", self._api_wardrobe_delete,  ["POST"]),
+            ("/plan/add",        self._api_plan_add,         ["POST"]),
+        ]
+
+        prefixes = ["/astrbot_plugin_stellar_splice", "/stellar_panel"]
+        registered = 0
+
+        for fn_name in ("register_web_api", "register_route", "register_web_route"):
+            fn = getattr(self.context, fn_name, None)
+            if not callable(fn):
+                continue
+            for prefix in prefixes:
+                for path, handler, methods in routes:
+                    try:
+                        fn(prefix + path, handler, methods)
+                        registered += 1
+                    except TypeError:
+                        try:
+                            fn(prefix + path, handler)
+                            registered += 1
+                        except Exception:
+                            pass
+                    except Exception:
+                        pass
+            if registered:
+                break
+
+        if registered:
+            logger.info(f"[StellarSplice] 已注册 {registered} 条面板 API 路由")
+        else:
+            logger.debug("[StellarSplice] 该 AstrBot 版本无 web 路由注册接口，面板仅展示")
+
+    async def _api_plan_add(self, payload: Dict) -> Dict:
+        """面板：手动添加日程。"""
+        intent = str(payload.get("intent") or "").strip()
+        if not intent:
+            return {"code": 1, "msg": "大事项不能为空"}
+
+        time_str = str(payload.get("time") or "").strip()
+        place = str(payload.get("place") or "").strip()
+
+        today = self._today_str()
+        now_min = datetime.now().hour * 60 + datetime.now().minute
+
+        import re as _re
+        m = _re.match(r"\s*(\d{1,2})[:：](\d{2})\s*[-~～]\s*(\d{1,2})[:：](\d{2})", time_str)
+        if m:
+            sh, sm_ = int(m.group(1)), int(m.group(2))
+            eh, em_ = int(m.group(3)), int(m.group(4))
+            start_min, end_min = sh * 60 + sm_, eh * 60 + em_
+        else:
+            start_min, end_min = now_min, min(24 * 60, now_min + 60)
+
+        if end_min <= start_min:
+            end_min = min(24 * 60, start_min + 60)
+
+        item = validate_schedule_item({
+            "start": to_hm(start_min),
+            "end": to_hm(end_min),
+            "intent": intent[:24],
+            "place": place[:12] if place else "待定",
+            "steps": "",
+            "locked": True,
+            "status": "pending",
+            "_src": "manual",
+        })
+        base = self._get_schedule(today)
+        merged = overlay(base, [item])
+        self._set_schedule(today, merged)
+        return {"code": 0, "msg": "已添加", "data": item}
 
     async def _api_wardrobe_list(self) -> Dict:
         if self._wardrobe is None:
@@ -762,6 +857,13 @@ class StellarSplice(Star):
         """面板状态接口。"""
         today = self._today_str()
         schedule = self._get_schedule(today)
+        current = self._current_slot(schedule)
+
+        # 当前场景 -> 衣着
+        outfit = ""
+        if self._wardrobe is not None:
+            scene = self._scene_of(current)
+            outfit = self._wardrobe.pick_for_scene(scene) or ""
 
         return {
             "version": PLUGIN_VERSION,
@@ -770,6 +872,7 @@ class StellarSplice(Star):
             "feelings": self._feelings.to_dict(),
             "feelings_text": self._feelings.text(),
             "schedule_today": schedule,
+            "outfit": outfit,
             "plugins": {
                 "canvas":  self._canvas is not None,
                 "voice":   self._voice is not None,
