@@ -1,0 +1,38 @@
+{
+  "bot_name": {
+    "type": "string",
+    "description": "机器人名字",
+    "default": "星缀",
+    "hint": "她在群里被叫到时的名字"
+  },
+  "bot_aliases": {
+    "type": "string",
+    "description": "别名",
+    "default": "",
+    "hint": "多个用英文逗号分隔，用于识别群聊里是否在叫她"
+  },
+  "group_reply_threshold": {
+    "type": "float",
+    "description": "群聊回复阈值",
+    "default": 0.5,
+    "hint": "0~1。达到这个分数才回。越低越爱说话，越高越安静"
+  },
+  "weather_enabled": {
+    "type": "bool",
+    "description": "启用天气",
+    "default": true,
+    "hint": "关掉后不查询天气"
+  },
+  "auto_steps_enabled": {
+    "type": "bool",
+    "description": "自动生成日程步骤",
+    "default": true,
+    "hint": "对话确定计划后，自动推理执行步骤"
+  },
+  "inject_state": {
+    "type": "bool",
+    "description": "注入状态",
+    "default": true,
+    "hint": "每轮注入三行精简状态（当前活动/心情/衣着）"
+  }
+}

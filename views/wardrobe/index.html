@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>星缀 · 衣柜</title>
+  <style>
+    :root {
+      --bg: #f8f7f4; --card: #fff; --text: #2a2a2a; --dim: #888;
+      --accent: #7b68ee; --line: #e5e3df; --bad: #e55; --ok: #3a9;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #1a1a1e; --card: #26262c; --text: #e8e8ef;
+              --dim: #888; --line: #3a3a44; }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font: 14px/1.6 system-ui; padding: 16px; }
+    h1 { font-size: 18px; margin-bottom: 16px; color: var(--accent); }
+    .card { background: var(--card); border: 1px solid var(--line);
+            border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+    .form-row { display: grid; gap: 10px; margin-bottom: 10px; }
+    @media (min-width: 480px) { .form-row { grid-template-columns: 1fr 1fr; } }
+    label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--dim); }
+    input, select { padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px;
+                    background: var(--bg); color: var(--text); font-size: 14px; }
+    input:focus, select:focus { outline: none; border-color: var(--accent); }
+    .btn { padding: 10px 20px; background: var(--accent); color: #fff; border: none;
+           border-radius: 8px; font-size: 14px; cursor: pointer; }
+    .btn:hover { opacity: 0.85; }
+    .btn-del { background: transparent; color: var(--bad); border: 1px solid var(--bad);
+               border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; color: var(--dim); font-weight: 500; padding: 6px 8px;
+         border-bottom: 1px solid var(--line); }
+    td { padding: 8px; border-bottom: 1px solid var(--line); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px;
+             font-size: 11px; background: var(--line); color: var(--dim); margin: 1px; }
+    .msg { padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 13px; display: none; }
+    .msg.ok  { background: #d4f5e9; color: #1a7a4a; display: block; }
+    .msg.err { background: #fde8e8; color: #a01; display: block; }
+    .empty { color: var(--dim); text-align: center; padding: 24px; }
+  </style>
+</head>
+<body>
+  <h1>🌟 星缀衣柜</h1>
+  <div class="msg" id="msg"></div>
+
+  <div class="card">
+    <h2 style="font-size:15px;margin-bottom:12px">添加服装</h2>
+    <div class="form-row">
+      <label>服装名称
+        <input type="text" id="f-name" placeholder="例：浅粉色真丝吊带睡裙" maxlength="40"/>
+      </label>
+      <label>槽位
+        <select id="f-slot">
+          <option value="dress">整套（推荐）</option>
+          <option value="top">上衣</option>
+          <option value="bottom">裤子/裙子</option>
+          <option value="jk_shirt">JK衬衣</option>
+          <option value="jk_skirt">JK格裙</option>
+          <option value="shoes">鞋</option>
+          <option value="socks">袜子</option>
+          <option value="accessory">配饰</option>
+        </select>
+      </label>
+    </div>
+    <div class="form-row">
+      <label>场景（多选，空格分隔）
+        <input type="text" id="f-scenes" placeholder="例：sleep home"/>
+      </label>
+      <label>备注
+        <input type="text" id="f-note" placeholder="选填"/>
+      </label>
+    </div>
+    <div style="margin-bottom:8px">
+      <span style="font-size:11px;color:var(--dim)">快选场景：</span>
+      <span class="badge" onclick="toggleScene('work')" style="cursor:pointer">上班</span>
+      <span class="badge" onclick="toggleScene('home')" style="cursor:pointer">在家</span>
+      <span class="badge" onclick="toggleScene('casual')" style="cursor:pointer">日常</span>
+      <span class="badge" onclick="toggleScene('out')" style="cursor:pointer">出门</span>
+      <span class="badge" onclick="toggleScene('formal')" style="cursor:pointer">正式</span>
+      <span class="badge" onclick="toggleScene('sport')" style="cursor:pointer">运动</span>
+      <span class="badge" onclick="toggleScene('sleep')" style="cursor:pointer">睡觉</span>
+      <span class="badge" onclick="toggleScene('beach')" style="cursor:pointer">海边</span>
+    </div>
+    <button class="btn" onclick="addItem()">+ 添加到衣柜</button>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:15px;margin-bottom:12px">我的衣柜
+      <span id="count" style="font-size:12px;color:var(--dim);font-weight:400"></span>
+    </h2>
+    <table>
+      <thead><tr>
+        <th>名称</th><th>场景</th><th>槽位</th><th>备注</th><th></th>
+      </tr></thead>
+      <tbody id="list"><tr><td colspan="5" class="empty">正在加载…</td></tr></tbody>
+    </table>
+  </div>
+
+  <script>
+    const bridge = window.AstrBotPluginView || window.AstrBotPluginPage;
+    const SCENE_LABELS = {
+      work:'上班', home:'在家', casual:'日常', out:'出门',
+      formal:'正式', sport:'运动', sleep:'睡觉', beach:'海边'
+    };
+    const SLOT_LABELS = {
+      dress:'整套', top:'上衣', bottom:'裤子', jk_shirt:'JK衬衣',
+      jk_skirt:'JK格裙', shoes:'鞋', socks:'袜子', accessory:'配饰'
+    };
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c =>
+        ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function showMsg(text, ok) {
+      const el = document.getElementById('msg');
+      el.textContent = text;
+      el.className = 'msg ' + (ok ? 'ok' : 'err');
+      setTimeout(() => { el.className = 'msg'; }, 2500);
+    }
+
+    function toggleScene(scene) {
+      const el = document.getElementById('f-scenes');
+      const parts = el.value.trim().split(/\s+/).filter(Boolean);
+      const idx = parts.indexOf(scene);
+      if (idx >= 0) parts.splice(idx, 1);
+      else parts.push(scene);
+      el.value = parts.join(' ');
+    }
+
+    async function load() {
+      if (!bridge) return;
+      try {
+        const data = await bridge.apiGet('wardrobe');
+        const items = (data?.data?.items) || [];
+        document.getElementById('count').textContent = `（${items.length} 件）`;
+        const tbody = document.getElementById('list');
+        if (!items.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="empty">还没有服装，添加一件吧</td></tr>';
+          return;
+        }
+        tbody.innerHTML = items.map(item => {
+          const scenes = (item.scenes || []).map(s => `<span class="badge">${esc(SCENE_LABELS[s]||s)}</span>`).join('');
+          const slot = esc(SLOT_LABELS[item.slot] || item.slot || '');
+          return `<tr>
+            <td>${esc(item.name)}</td>
+            <td>${scenes}</td>
+            <td>${slot}</td>
+            <td style="color:var(--dim)">${esc(item.note || '')}</td>
+            <td><button class="btn-del" onclick="del('${esc(item.id)}')">删除</button></td>
+          </tr>`;
+        }).join('');
+      } catch(e) {
+        document.getElementById('list').innerHTML =
+          '<tr><td colspan="5" class="empty">读取失败：' + esc(e?.message) + '</td></tr>';
+      }
+    }
+
+    async function addItem() {
+      if (!bridge) return;
+      const name = document.getElementById('f-name').value.trim();
+      if (!name) { showMsg('请填写服装名称', false); return; }
+      const scenes = document.getElementById('f-scenes').value.trim().split(/\s+/).filter(Boolean);
+      const slot = document.getElementById('f-slot').value;
+      const note = document.getElementById('f-note').value.trim();
+      try {
+        const res = await bridge.apiPost('wardrobe/add', { name, scenes, slot, note });
+        if (res?.code === 0) {
+          showMsg('✅ ' + (res.msg || '已添加'), true);
+          document.getElementById('f-name').value = '';
+          document.getElementById('f-scenes').value = '';
+          document.getElementById('f-note').value = '';
+          await load();
+        } else {
+          showMsg(res?.msg || '添加失败', false);
+        }
+      } catch(e) {
+        showMsg('请求失败: ' + e?.message, false);
+      }
+    }
+
+    async function del(id) {
+      if (!bridge || !confirm('确认删除这件服装？')) return;
+      try {
+        const res = await bridge.apiPost('wardrobe/delete', { id });
+        if (res?.code === 0) { showMsg('已删除', true); await load(); }
+        else showMsg(res?.msg || '删除失败', false);
+      } catch(e) {
+        showMsg('请求失败: ' + e?.message, false);
+      }
+    }
+
+    if (bridge) {
+      bridge.ready?.().then(() => load());
+    } else {
+      document.getElementById('list').innerHTML =
+        '<tr><td colspan="5" class="empty">请在插件详情页打开本面板</td></tr>';
+    }
+  </script>
+</body>
+</html>
