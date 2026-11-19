@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>星缀面板</title>
+<style>
+:root {
+  --bg: #faf9f7;
+  --card: rgba(255, 255, 255, 0.88);
+  --text: #2a2834;
+  --muted: #7e7a88;
+  --pink: #f472b6;
+  --pink2: #e879d3;
+  --accent: #7b68ee;
+  --line: rgba(124, 115, 140, 0.15);
+  --track: rgba(124, 115, 140, 0.08);
+  --ok: #34d399;
+  --warn: #fb923c;
+  --bad: #f87171;
+  --canvas-label: rgba(243, 239, 248, 0.72);
+  --canvas-fill: rgba(244, 114, 182, 0.20);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17171b;
+    --card: rgba(34, 34, 42, 0.88);
+    --text: #e8e8f0;
+    --muted: #8a8a99;
+    --line: rgba(124, 115, 140, 0.22);
+    --track: rgba(124, 115, 140, 0.12);
+    --canvas-label: rgba(70, 68, 80, 0.80);
+    --canvas-fill: rgba(244, 114, 182, 0.28);
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; width: 100%; max-width: 100%; overflow-x: hidden; }
+body {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  padding: max(16px, env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
+}
+.wrap { width: 100%; max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px;
+  margin-bottom: 6px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: .5px;
+  cursor: pointer;
+  user-select: none;
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--pink);
+  box-shadow: 0 0 10px rgba(232, 72, 154, .45);
+}
+.clock {
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  user-select: none;
+}
+.tabs {
+  display: flex;
+  gap: 6px;
+  padding: 3px;
+  background: var(--track);
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+.tab {
+  flex: 1;
+  padding: 8px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.tab.active {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.label {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: .4px;
+  margin-bottom: 6px;
+}
+.value {
+  font-size: 17px;
+  font-weight: 600;
+  margin-top: 5px;
+  line-height: 1.35;
+}
+.sub {
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
+/* 主控 */
+.hero-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+.dominant {
+  font-size: 25px;
+  font-weight: 650;
+}
+.hero-score {
+  color: var(--pink);
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.hero-score small {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+  margin-left: 2px;
+}
+canvas {
+  display: block;
+  margin: 2px auto 0;
+  max-width: 100%;
+  height: auto;
+}
+.bars {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+  margin-top: 10px;
+}
+.bar-row {
+  display: grid;
+  grid-template-columns: 34px 1fr 30px;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+}
+.bar-row span:first-child {
+  color: var(--muted);
+}
+.bar-row .num {
+  text-align: right;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.track {
+  height: 6px;
+  background: var(--track);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--pink), var(--pink2));
+  transition: width .5s ease;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+.grid .card {
+  padding: 9px 12px;
+}
+.grid .label {
+  font-size: 11px;
+}
+.grid .value {
+  font-size: 15px;
+  margin-top: 2px;
+}
+.grid .sub {
+  font-size: 11px;
+  margin-top: 2px;
+}
+.schedule {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.schedule li {
+  display: flex;
+  gap: 10px;
+  font-size: 12.5px;
+  padding: 7px 9px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid var(--line);
+}
+.schedule li.current {
+  background: rgba(244, 114, 182, 0.14);
+  border: 1px solid rgba(244, 114, 182, 0.32);
+}
+.schedule .t {
+  color: var(--muted);
+  min-width: 82px;
+  font-variant-numeric: tabular-nums;
+}
+.schedule .txt {
+  flex: 1;
+  line-height: 1.45;
+}
+.schedule .txt b {
+  color: var(--text);
+  font-weight: 600;
+}
+.schedule .txt .lock {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 11px;
+}
+.schedule .txt .steps {
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 2px;
+}
+.plugins {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+.plugin-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  font-size: 13px;
+}
+.plugin-item .pdot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.pdot.on {
+  background: var(--ok);
+}
+.pdot.off {
+  background: var(--line);
+}
+.plugin-item .pname {
+  flex: 1;
+}
+.plugin-item .pstatus {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* 衣柜 */
+.w-msg {
+  padding: 9px 12px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  display: none;
+}
+.w-msg.ok {
+  background: rgba(52, 211, 153, 0.14);
+  color: var(--ok);
+  display: block;
+}
+.w-msg.err {
+  background: rgba(248, 113, 113, 0.14);
+  color: var(--bad);
+  display: block;
+}
+.form-row {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+@media (min-width: 480px) {
+  .form-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.f-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+input, select {
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--track);
+  color: var(--text);
+  font-size: 14px;
+  width: 100%;
+}
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--pink);
+  background: var(--card);
+}
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.scene-chip {
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-size: 12px;
+  cursor: pointer;
+  background: var(--track);
+  transition: all .15s;
+}
+.scene-chip.sel {
+  background: var(--pink);
+  color: #fff;
+  border-color: var(--pink);
+}
+.btn {
+  padding: 10px 22px;
+  background: linear-gradient(135deg, var(--pink), var(--pink2));
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(244, 114, 182, 0.25);
+}
+.btn:hover {
+  opacity: .88;
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn-del {
+  background: transparent;
+  color: var(--bad);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.btn-del:hover {
+  border-color: var(--bad);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 10px;
+}
+th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 500;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+}
+td {
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  background: var(--track);
+  color: var(--muted);
+  margin: 1px;
+}
+.empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 24px;
+  font-size: 13px;
+}
+.wardrobe-count {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 4px;
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header>
+  <div class="brand" onclick="location.reload()">
+    <span class="dot"></span>
+    <span>星缀</span>
+  </div>
+  <div class="clock" id="clock">--:--</div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" data-view="overview">主控</button>
+  <button class="tab" data-view="wardrobe">衣柜</button>
+</div>
+
+<!-- 主控 -->
+<div id="view-overview">
+
+  <div class="card">
+    <div class="hero-top">
+      <div>
+        <div class="label">当前人格</div>
+        <div class="dominant" id="persona-name">—</div>
+      </div>
+      <div>
+        <div class="hero-score" id="persona-lock">—</div>
+      </div>
+    </div>
+    <canvas id="feel-radar" width="280" height="280" style="max-width:280px"></canvas>
+    <div class="bars" id="feel-bars"></div>
+  </div>
+
+  <div class="card">
+    <div class="label">今日日程</div>
+    <ul class="schedule" id="schedule">
+      <li class="empty">暂无日程</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="label">挂载状态</div>
+    <div class="plugins" id="plugins">
+      <div class="plugin-item"><span class="pdot off"></span><span class="pname">读取中</span></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 衣柜 -->
+<div id="view-wardrobe" style="display:none">
+
+  <div class="w-msg" id="w-msg"></div>
+
+  <div class="card">
+    <div class="label">添加服装</div>
+    <div class="form-row">
+      <label class="f-label">名称
+        <input type="text" id="f-name" placeholder="例：浅粉色真丝吊带睡裙" maxlength="40"/>
+      </label>
+      <label class="f-label">槽位
+        <select id="f-slot">
+          <option value="dress">整套（推荐）</option>
+          <option value="top">上衣</option>
+          <option value="bottom">裤子/裙子</option>
+          <option value="jk_shirt">JK衬衣</option>
+          <option value="jk_skirt">JK格裙</option>
+          <option value="shoes">鞋</option>
+          <option value="socks">袜子</option>
+          <option value="accessory">配饰</option>
+        </select>
+      </label>
+    </div>
+    <div style="margin-bottom:8px">
+      <span style="font-size:11px;color:var(--muted);margin-right:4px">选场景：</span>
+      <div class="chip-row" id="scene-chips">
+        <span class="scene-chip" data-s="work">上班</span>
+        <span class="scene-chip" data-s="home">在家</span>
+        <span class="scene-chip" data-s="casual">日常</span>
+        <span class="scene-chip" data-s="out">出门</span>
+        <span class="scene-chip" data-s="formal">正式</span>
+        <span class="scene-chip" data-s="sport">运动</span>
+        <span class="scene-chip" data-s="sleep">睡觉</span>
+        <span class="scene-chip" data-s="beach">海边</span>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="f-label">备注（选填）
+        <input type="text" id="f-note"/>
+      </label>
+    </div>
+    <button class="btn" onclick="addCloth()">+ 加入衣柜</button>
+  </div>
+
+  <div class="card">
+    <div class="label">我的衣柜
+      <span class="wardrobe-count" id="w-count"></span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>名称</th><th>场景</th><th>槽位</th><th></th>
+      </tr></thead>
+      <tbody id="w-list"><tr><td colspan="4" class="empty">读取中…</td></tr></tbody>
+    </table>
+  </div>
+
+</div>
+
+</div>
+
+<script>
+const bridge = window.AstrBotPluginView || window.AstrBotPluginPage;
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const FEEL_LABEL = {joy:'喜',anger:'怒',sorrow:'哀',fear:'惧',love:'爱',energy:'精力',hunger:'饿'};
+const SLOT_LABEL = {dress:'整套',top:'上衣',bottom:'裤/裙',jk_shirt:'JK衬',jk_skirt:'JK裙',shoes:'鞋',socks:'袜',accessory:'配饰'};
+const SCENE_LABEL = {work:'上班',home:'在家',casual:'日常',out:'出门',formal:'正式',sport:'运动',sleep:'睡觉',beach:'海边'};
+
+/* ── 时钟 ── */
+function updateClock(){
+  const now=new Date();
+  const h=String(now.getHours()).padStart(2,'0');
+  const m=String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('clock').textContent=`${h}:${m}`;
+}
+updateClock();
+setInterval(updateClock,15000);
+
+/* ── 切换视图 ── */
+function switchView(name){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
+  document.getElementById('view-overview').style.display = name==='overview'?'block':'none';
+  document.getElementById('view-wardrobe').style.display = name==='wardrobe'?'block':'none';
+  if(name==='wardrobe') loadWardrobe();
+}
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.view)));
+
+/* ── 主控数据 ── */
+async function loadOverview(){
+  if(!bridge) return renderOverviewFallback();
+  try{
+    const d = await bridge.apiGet('state');
+    renderOverview(d||{});
+  }catch(e){
+    document.getElementById('persona-name').textContent='错误';
+  }
+}
+
+function renderOverview(d){
+  // 人格
+  document.getElementById('persona-name').textContent = d.persona_name || '—';
+  const lock = d.persona_locked ? '🔒' : '🔓';
+  document.getElementById('persona-lock').innerHTML = lock;
+
+  // 情绪雷达图
+  const feels = d.feelings || {};
+  const feelKeys = ['joy','anger','sorrow','fear','love','energy','hunger'];
+  const feelVals = feelKeys.map(k=>feels[k]??0);
+  drawRadar(feelVals);
+
+  // 情绪条
+  const fb = document.getElementById('feel-bars');
+  fb.innerHTML = feelKeys.map(k=>{
+    const v = feels[k]??0;
+    return `<div class="bar-row">
+      <span>${FEEL_LABEL[k]}</span>
+      <div class="track"><span class="fill" style="width:${v}%"></span></div>
+      <span class="num">${Math.round(v)}</span>
+    </div>`;
+  }).join('');
+
+  // 日程
+  const sched = d.schedule_today || [];
+  const sl = document.getElementById('schedule');
+  if(!sched.length){
+    sl.innerHTML='<li class="empty">今天暂无日程</li>';
+  }else{
+    const now=new Date();
+    const nowMin=now.getHours()*60+now.getMinutes();
+    sl.innerHTML = sched.map(s=>{
+      const [sh,sm]=(s.start||'0:0').split(':').map(Number);
+      const [eh,em]=(s.end||'0:0').split(':').map(Number);
+      const sMN=sh*60+sm, eMN=eh*60+em;
+      const isCur = nowMin>=sMN && nowMin<eMN;
+      const lock = s.locked?'<span class="lock">🔒</span>':'';
+      const src = s._src==='chat'?'<span class="badge" style="background:rgba(244,114,182,0.2);color:var(--pink)">聊</span>':'';
+      return `<li class="${isCur?'current':''}">
+        <span class="t">${esc(s.start)}–${esc(s.end)}</span>
+        <div class="txt">
+          <b>${esc(s.intent||s.activity||'休息')}${lock}${src}</b>
+          ${s.steps?`<div class="steps">${esc(s.steps.slice(0,60))}</div>`:''}
+        </div>
+      </li>`;
+    }).join('');
+  }
+
+  // 插件
+  const plugins = d.plugins||{};
+  const pg = document.getElementById('plugins');
+  const labels={canvas:'星绘',voice:'星言',guard:'星盾',memory:'星忆'};
+  pg.innerHTML = Object.entries(labels).map(([k,label])=>{
+    const on=plugins[k];
+    return `<div class="plugin-item">
+      <span class="pdot ${on?'on':'off'}"></span>
+      <span class="pname">${esc(label)}</span>
+      <span class="pstatus">${on?'已挂载':'未安装'}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderOverviewFallback(){
+  document.getElementById('persona-name').textContent='离线';
+  document.getElementById('feel-bars').innerHTML='<div class="empty">请在插件详情页打开本面板</div>';
+}
+
+/* ── 雷达图 ── */
+function drawRadar(vals){
+  const c = document.getElementById('feel-radar');
+  const ctx = c.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = 280, h = 280;
+  c.width = w*dpr; c.height = h*dpr;
+  c.style.width = w+'px'; c.style.height = h+'px';
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+
+  const cx=w/2, cy=h/2, r=100;
+  const n=vals.length;
+  const labels = ['喜','怒','哀','惧','爱','精力','饿'];
+
+  // 背景网格
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--line').trim();
+  ctx.lineWidth = 1;
+  for(let i=1;i<=5;i++){
+    ctx.beginPath();
+    for(let j=0;j<n;j++){
+      const a = Math.PI/2 - j*2*Math.PI/n;
+      const x = cx + Math.cos(a)*r*i/5;
+      const y = cy - Math.sin(a)*r*i/5;
+      if(j===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  }
+
+  // 轴线
+  for(let j=0;j<n;j++){
+    const a = Math.PI/2 - j*2*Math.PI/n;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.lineTo(cx+Math.cos(a)*r, cy-Math.sin(a)*r);
+    ctx.stroke();
+  }
+
+  // 数据区域
+  const fillColor = getComputedStyle(document.documentElement).getPropertyValue('--canvas-fill').trim();
+  ctx.fillStyle = fillColor;
+  ctx.beginPath();
+  for(let j=0;j<n;j++){
+    const a = Math.PI/2 - j*2*Math.PI/n;
+    const v = vals[j]/100;
+    const x = cx + Math.cos(a)*r*v;
+    const y = cy - Math.sin(a)*r*v;
+    if(j===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  // 数据边框
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--pink').trim();
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // 标签
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text').trim();
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for(let j=0;j<n;j++){
+    const a = Math.PI/2 - j*2*Math.PI/n;
+    const x = cx + Math.cos(a)*(r+20);
+    const y = cy - Math.sin(a)*(r+20);
+    ctx.fillText(labels[j], x, y);
+  }
+}
+
+/* ── 衣柜数据 ── */
+async function loadWardrobe(){
+  if(!bridge){
+    document.getElementById('w-list').innerHTML='<tr><td colspan="4" class="empty">请在插件详情页打开本面板</td></tr>';
+    return;
+  }
+  try{
+    const d=await bridge.apiGet('wardrobe');
+    renderWardrobe(d);
+  }catch(e){
+    document.getElementById('w-list').innerHTML=`<tr><td colspan="4" class="empty">读取失败：${esc(e?.message)}</td></tr>`;
+  }
+}
+
+function renderWardrobe(d){
+  const items=(d?.data?.items)||[];
+  document.getElementById('w-count').textContent=`（${items.length} 件）`;
+  const tb=document.getElementById('w-list');
+  if(!items.length){
+    tb.innerHTML='<tr><td colspan="4" class="empty">还没有服装，添加一件吧</td></tr>';
+    return;
+  }
+  tb.innerHTML=items.map(item=>{
+    const scenes=(item.scenes||[]).map(s=>`<span class="badge">${esc(SCENE_LABEL[s]||s)}</span>`).join(' ');
+    const slot=esc(SLOT_LABEL[item.slot]||item.slot||'');
+    return `<tr>
+      <td>${esc(item.name)}</td>
+      <td>${scenes}</td>
+      <td>${slot}</td>
+      <td><button class="btn-del" onclick="delCloth('${esc(item.id)}')">删除</button></td>
+    </tr>`;
+  }).join('');
+}
+
+/* 场景芯片多选 */
+document.querySelectorAll('.scene-chip').forEach(c=>{
+  c.addEventListener('click',()=>c.classList.toggle('sel'));
+});
+
+function getSelScenes(){
+  return [...document.querySelectorAll('.scene-chip.sel')].map(c=>c.dataset.s);
+}
+
+function showMsg(text,ok){
+  const el=document.getElementById('w-msg');
+  el.textContent=text; el.className='w-msg '+(ok?'ok':'err');
+  setTimeout(()=>{el.className='w-msg';},2800);
+}
+
+async function addCloth(){
+  if(!bridge) return;
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){showMsg('请填写服装名称',false);return;}
+  const scenes=getSelScenes();
+  const slot=document.getElementById('f-slot').value;
+  const note=document.getElementById('f-note').value.trim();
+  try{
+    const res=await bridge.apiPost('wardrobe/add',{name,scenes,slot,note});
+    if(res?.code===0){
+      showMsg('✅ 已加入衣柜',true);
+      document.getElementById('f-name').value='';
+      document.getElementById('f-note').value='';
+      document.querySelectorAll('.scene-chip').forEach(c=>c.classList.remove('sel'));
+      await loadWardrobe();
+    }else showMsg(res?.msg||'添加失败',false);
+  }catch(e){showMsg('请求失败: '+e?.message,false);}
+}
+
+async function delCloth(id){
+  if(!bridge||!confirm('确认删除？')) return;
+  try{
+    const res=await bridge.apiPost('wardrobe/delete',{id});
+    if(res?.code===0){showMsg('已删除',true);await loadWardrobe();}
+    else showMsg(res?.msg||'删除失败',false);
+  }catch(e){showMsg('请求失败: '+e?.message,false);}
+}
+
+/* ── 初始化 ── */
+if(bridge){
+  bridge.ready?.().then(()=>loadOverview());
+  setInterval(()=>{
+    const cur = document.querySelector('.tab.active')?.dataset.view;
+    if(cur==='overview') loadOverview();
+  },20000);
+}else{
+  renderOverviewFallback();
+}
+</script>
+</body>
+</html>

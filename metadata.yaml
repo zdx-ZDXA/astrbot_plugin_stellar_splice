@@ -2,7 +2,7 @@ name: astrbot_plugin_stellar_splice
 display_name: 星缀
 desc: 星缀 StellarSplice · 轻量陪伴大脑：心流 · 日程 · 记忆 · 情绪，挂载 星绘 / 星言 / 星盾 / 星忆
 short_desc: 星缀 · 轻量陪伴大脑
-version: 1.0.2
+version: 1.0.3
 author: stellar
 astrbot_version: ">=4.5.7"
 repo: https://github.com/zdx-ZDXA/astrbot_plugin_stellar_splice

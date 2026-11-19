@@ -729,10 +729,11 @@ class StellarSplice(Star):
         try:
             if hasattr(self.context, "register_web_view"):
                 self.context.register_web_view(
-                    path="/stellar_splice",
-                    file_path="views/wardrobe/index.html",
+                    path="/stellar_panel",
+                    file_path="views/panel/index.html",
                     plugin_name="astrbot_plugin_stellar_splice",
                 )
+                logger.info("[StellarSplice] 面板已注册：/stellar_panel")
         except Exception as e:
             logger.debug(f"[StellarSplice] 面板注册失败（可能版本不支持）: {e}")
 
